@@ -237,29 +237,82 @@ def make_v(ser):
         print("Failed to complete make V sequence.")
     return success
 
-def walk_step(ser, leg, high_knee=False):
-    """Performs a single walking step with the specified leg."""
-    # print(f"Performing walk step with {leg} leg (high knee: {high_knee})...") # Verbose
-    step_delay = 0.4 # Increased for stability
+def adjust_balance(ser, stepping_leg):
+    """Adjusts the torso and supporting leg to maintain balance while stepping."""
+    print(f"Adjusting balance for {stepping_leg} leg step...")
+    balance_pose = {}
+    
+    if stepping_leg == 'right':
+        # Lean slightly to the left to balance on the left leg
+        balance_pose = {
+            8: 6200,  # Left Hip (LH) - slight lean to the left
+            9: 5000,  # Right Hip (RH) - slight lean to the left
+            6: 5400,  # Left Hip-Thigh (LHT) - slight forward adjust
+            7: 5700,  # Right Hip-Thigh (RHT) - slight forward adjust
+            # Supporting leg (left) adjustment
+            2: 6100,  # Left Ankle (LA) - slight tilt to stabilize
+            4: 5600,  # Left Knee (LK) - slight bend for stability
+            # Arms for counterbalance
+            10: 6500,  # Left Shoulder (LS) - slight outward for balance
+            11: 5500   # Right Shoulder (RS) - slight outward for balance
+        }
+    elif stepping_leg == 'left':
+        # Lean slightly to the right to balance on the right leg
+        balance_pose = {
+            8: 5600,  # Left Hip (LH) - slight lean to the right
+            9: 5600,  # Right Hip (RH) - slight lean to the right
+            6: 5800,  # Left Hip-Thigh (LHT) - slight forward adjust
+            7: 5300,  # Right Hip-Thigh (RHT) - slight forward adjust
+            # Supporting leg (right) adjustment
+            3: 4850,  # Right Ankle (RA) - slight tilt to stabilize
+            5: 5800,  # Right Knee (RK) - slight bend for stability
+            # Arms for counterbalance
+            10: 5500,  # Left Shoulder (LS) - slight outward for balance
+            11: 6500   # Right Shoulder (RS) - slight outward for balance
+        }
+    
+    success = set_positions(ser, balance_pose, delay=0.3)
+    if not success:
+        print(f"Failed to adjust balance for {stepping_leg} leg.")
+    return success
 
+def walk_step(ser, leg, high_knee=False):
+    """Performs a single walking step with the specified leg, with balance adjustments."""
+    print(f"Performing walk step with {leg} leg (high knee: {high_knee})...")
+    step_delay = 0.6  # Slower delay for better stability
+
+    # Step 1: Adjust balance before lifting the leg
+    if not adjust_balance(ser, leg):
+        return False
+
+    # Step 2: Define positions for lifting, moving forward, and setting down
     if leg == 'right':
-        lift_pos = {3: 5500, 5: 4000, 7: 4500} if high_knee else {3: 6000, 5: 5000, 7: 5000}
-        forward_pos = {3: 6300, 5: 5400, 7: 6000}
-        down_pos = {3: 6300, 5: 5400, 7: 5600} # Back to standing hip
+        # Lift: Raise the right leg
+        lift_pos = {3: 5250, 5: 4500, 7: 4800} if high_knee else {3: 5450, 5: 5200, 7: 5100}
+        # Forward: Swing the leg forward
+        forward_pos = {3: 6050, 5: 5000, 7: 5700}
+        # Down: Place the leg down
+        down_pos = {3: standing_position[3], 5: standing_position[5], 7: standing_position[7]}
     elif leg == 'left':
-        lift_pos = {2: 5800, 4: 5000, 6: 6400} if high_knee else {2: 5300, 4: 5400, 6: 5900}
-        forward_pos = {2: 5000, 4: 6000, 6: 5300}
-        down_pos = {2: 5000, 4: 6000, 6: 5300} # Back to standing hip
+        # Lift: Raise the left leg
+        lift_pos = {2: 6650, 4: 4600, 6: 6000} if high_knee else {2: 6450, 4: 5100, 6: 5800}
+        # Forward: Swing the leg forward
+        forward_pos = {2: 5650, 4: 5400, 6: 5200}
+        # Down: Place the leg down
+        down_pos = {2: standing_position[2], 4: standing_position[4], 6: standing_position[6]}
     else:
         print("[ERROR] Invalid leg specified for walk_step. Use 'left' or 'right'.")
         return False
 
-    # Execute sequence
-    if not set_positions(ser, lift_pos, delay=step_delay): return False
-    if not set_positions(ser, forward_pos, delay=step_delay): return False
-    if not set_positions(ser, down_pos, delay=step_delay): return False
+    # Execute the walking sequence
+    if not set_positions(ser, lift_pos, delay=step_delay):
+        return False
+    if not set_positions(ser, forward_pos, delay=step_delay):
+        return False
+    if not set_positions(ser, down_pos, delay=step_delay):
+        return False
 
-    # print(f"Walk step with {leg} leg complete.") # Verbose
+    print(f"Walk step with {leg} leg complete.")
     return True
 
 def walk(ser, steps):
@@ -268,18 +321,23 @@ def walk(ser, steps):
     all_success = True
     for i in range(steps):
         print(f"Step {i+1}/{steps}...")
+        # Step with the right leg
         if not walk_step(ser, 'right'):
             all_success = False
             break
+        # Step with the left leg
         if not walk_step(ser, 'left'):
             all_success = False
             break
+    
     if all_success:
         print("Walking sequence finished.")
     else:
         print("Walking sequence interrupted due to command failure.")
-    # Return to standing position after walking
-    set_positions(ser, standing_position, delay=1.0)
+    
+    # Return to standing position with a smooth transition
+    print("Returning to standing position...")
+    set_positions(ser, standing_position, delay=1.5)
     return all_success
 
 def walk_high_knees(ser, steps):
@@ -288,19 +346,25 @@ def walk_high_knees(ser, steps):
     all_success = True
     for i in range(steps):
         print(f"High-Knee Step {i+1}/{steps}...")
+        # High-knee step with the right leg
         if not walk_step(ser, 'right', high_knee=True):
             all_success = False
             break
+        # High-knee step with the left leg
         if not walk_step(ser, 'left', high_knee=True):
             all_success = False
             break
+    
     if all_success:
         print("High-knee walking sequence finished.")
     else:
         print("High-knee walking sequence interrupted due to command failure.")
-    # Return to standing position after walking
-    set_positions(ser, standing_position, delay=1.0)
+    
+    # Return to standing position with a smooth transition
+    print("Returning to standing position...")
+    set_positions(ser, standing_position, delay=1.5)
     return all_success
+
 
 def bend_forward(ser):
     """Moves the robot to bend forward."""
@@ -603,12 +667,12 @@ def hug_prep(ser):
 standing_position = {
     0: 6000,  # Left Ankle Twist (LAT)
     1: 6400,  # Right Ankle Twist (RAT)
-    2: 6300,  # Left Ankle (LA)
-    3: 4650,  # Right Ankle (RA)
+    2: 6250,  # Left Ankle (LA)
+    3: 4600,  # Right Ankle (RA)
     4: 5400,  # Left Knee (LK)
     5: 6000,  # Right Knee (RK)
     6: 5600,  # Left Hip-Thigh (LHT)
-    7: 5500,  # Right Hip-Thigh (RHT)
+    7: 5400,  # Right Hip-Thigh (RHT)
     8: 5900,  # Left Hip (LH)
     9: 5300,  # Right Hip (RH)
     10: 6000,  # Left Shoulder (LS)
