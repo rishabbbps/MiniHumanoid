@@ -395,7 +395,29 @@ with main_cols[0]:
     if st.button("🧍‍♂️ Get Up", key="get_up", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos.get_up, success_msg="Attempted get up.", failure_msg="Failed to attempt get up.")
 
-    st.markdown('<div class="emergency-button">', unsafe_allow_html=True)
+    st.markdown("---") # Separator for new actions
+    st.markdown('<p class="big-font" style="margin-top:15px;">New Actions</p>', unsafe_allow_html=True)
+
+    if st.button("👋 Wave Hello (R)", key="wave_hello", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.wave_hello_right, success_msg="Waved hello.", failure_msg="Failed to wave hello.")
+
+    if st.button("👍 Head Nod (Yes)", key="head_nod", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.head_nod_yes, success_msg="Nodded head.", failure_msg="Failed to nod head.")
+
+    if st.button("↕️ Look Up/Down", key="look_up_down", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.look_up_down, success_msg="Looked up/down.", failure_msg="Failed to look up/down.")
+
+    if st.button("🥋 Karate Chop (R)", key="karate_chop", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.karate_chop_right, success_msg="Performed karate chop.", failure_msg="Failed to perform karate chop.")
+
+    if st.button("🙇 Bow", key="bow_action", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.bow_action, success_msg="Performed bow.", failure_msg="Failed to perform bow.")
+
+    if st.button("🤗 Prepare Hug", key="hug_prep", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos.hug_prep, success_msg="Prepared for hug.", failure_msg="Failed to prepare for hug.")
+
+    st.markdown("---") # Separator before emergency button
+    st.markdown('<div class="emergency-button" style="margin-top:15px;">', unsafe_allow_html=True)
     # Changed button action to call restore_maestro_defaults directly
     if st.button("⚠️ RESTORE DEFAULTS (Release Servos)", key="release", disabled=not st.session_state.connected):
         with st.spinner("Restoring Maestro defaults..."):
