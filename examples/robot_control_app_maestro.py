@@ -2,7 +2,7 @@
 import streamlit as st
 import time
 import serial
-import examples.standing_pos_maestro as standing_pos_maestro
+import standing_pos_maestro
 import subprocess  # Add this import
 import os  # Also add this for path handling
 
@@ -10,7 +10,7 @@ import os  # Also add this for path handling
 # Configure the page
 st.set_page_config(
     page_title="Mini Humanoid Control Panel",
-    page_icon="🤖",
+    page_icon="ü§ñ",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -56,6 +56,7 @@ PORT = '/dev/cu.usbmodem004763651' # Adjust if needed
 BAUDRATE = 115200
 CONNECT_RETRIES = 3
 CONNECT_DELAY = 2.0 # Seconds
+DEVICE_ID = 0x0c  # Added for Maestro controller initialization
 
 
 # --- Initialize Session State ---
@@ -72,50 +73,21 @@ USCCMD_CMD = "UscCmd"  # No .exe needed
 
 def connect_robot():
     st.session_state.last_error = ""
-    # env = os.environ.copy() # Keep env setup if needed later
-    # env["DYLD_LIBRARY_PATH"] = "/opt/homebrew/Cellar/libusb/1.0.28/lib"
-
     try:
-        # print("Restoring defaults...") # Removed UscCmd calls
-        # result = subprocess.run(
-        #     ["mono", USCCMD_CMD, "--restoredefaults"],
-        #     cwd=USCCMD_DIR,
-        #     check=True,
-        #     capture_output=True,
-        #     text=True,
-        #     env=env
-        # )
-        # print(f"Restore defaults output: {result.stdout}\n{result.stderr}")
-        # # Now configure maestro
-        # print("Configuring maestro...")
-        # result = subprocess.run(
-        #     ["mono", USCCMD_CMD, "--configure", "maestro_config.txt"],
-        #     cwd=USCCMD_DIR,
-        #     check=True,
-        #     capture_output=True,
-        #     text=True,
-        #     env=env
-        # )
-        # print(f"Configure output: {result.stdout}\n{result.stderr}")
-        # print("Maestro initialization complete.") # Removed UscCmd calls
-
-        # --- Start Serial Connection ---
-        """Attempts to establish serial connection."""
-        st.session_state.last_error = ""
         print("Attempting direct serial connection (assuming Maestro is pre-configured)...")
-        if st.session_state.ser and st.session_state.ser.is_open:
+        if st.session_state.ser and hasattr(st.session_state.ser, 'usb') and st.session_state.ser.usb.is_open:
             print("Already connected.")
             st.session_state.connected = True
             return True
 
         print(f"Attempting to connect to {PORT}...")
-        st.session_state.ser = standing_pos_maestro.init_serial(
+        st.session_state.ser = standing_pos_maestro.init_maestro_controller(
             port=PORT,
-            baudrate=BAUDRATE,
+            device_id=DEVICE_ID,
             retries=CONNECT_RETRIES,
             delay=CONNECT_DELAY
         )
-        if st.session_state.ser and st.session_state.ser.is_open:
+        if st.session_state.ser and hasattr(st.session_state.ser, 'usb') and st.session_state.ser.usb.is_open:
             st.session_state.connected = True
             print("Connection successful.")
             # Set initial speeds using helper function
@@ -135,22 +107,24 @@ def connect_robot():
             # Ensure ser is None if connection failed
             if st.session_state.ser:
                 try:
-                    st.session_state.ser.close()
+                    if hasattr(st.session_state.ser, 'usb'):
+                        st.session_state.ser.usb.close()
+                    elif hasattr(st.session_state.ser, 'close'):
+                        st.session_state.ser.close()
                 except:
                     pass # Ignore errors on close during failure
             st.session_state.ser = None
             return False
-    # Removed UscCmd specific exceptions as calls are removed
-    # except subprocess.CalledProcessError as e: ...
-    # except FileNotFoundError as e: ...
-    # except subprocess.SubprocessError as e: ...
-    except Exception as e: # Catch other potential errors during serial connection
+    except Exception as e:
         error_msg = f"An error occurred during serial connection: {e}"
         st.session_state.last_error = error_msg
         print(error_msg)
-        # Ensure cleanup if serial object exists but failed
         if st.session_state.ser:
-            try: st.session_state.ser.close()
+            try: 
+                if hasattr(st.session_state.ser, 'usb'):
+                    st.session_state.ser.usb.close()
+                elif hasattr(st.session_state.ser, 'close'):
+                    st.session_state.ser.close()
             except: pass
         st.session_state.ser = None
         st.session_state.connected = False
@@ -159,14 +133,22 @@ def connect_robot():
 
 def disconnect_robot():
     """Closes the serial connection."""
-    if st.session_state.ser and st.session_state.ser.is_open:
+    if st.session_state.ser:
         try:
-            # Optional: Release servos before disconnecting
-            # print("Releasing servos before disconnect...")
-            # standing_pos_maestro.release_servos(st.session_state.ser)
-            # time.sleep(0.5)
-            st.session_state.ser.close()
-            print(f"Disconnected from {PORT}.")
+            # Check if we have a Controller object with a usb attribute
+            if hasattr(st.session_state.ser, 'usb') and hasattr(st.session_state.ser.usb, 'is_open') and st.session_state.ser.usb.is_open:
+                # Optional: Release servos before disconnecting
+                # print("Releasing servos before disconnect...")
+                # standing_pos_maestro.release_servos(st.session_state.ser)
+                # time.sleep(0.5)
+                st.session_state.ser.usb.close()
+                print(f"Disconnected from {PORT}.")
+            # Check if we have a Serial object directly
+            elif hasattr(st.session_state.ser, 'is_open') and st.session_state.ser.is_open:
+                st.session_state.ser.close()
+                print(f"Disconnected from {PORT}.")
+            else:
+                print("Connection was already closed or not properly initialized.")
         except Exception as e:
             print(f"Error during disconnect: {e}")
             st.session_state.last_error = f"Error during disconnect: {e}"
@@ -175,12 +157,22 @@ def disconnect_robot():
     st.session_state.ser = None
     st.session_state.connected = False
 
-# --- Helper Function to Set Initial Speeds ---
+
 def _set_initial_speeds(ser_instance):
     """Sets the initial speed for all servos."""
-    if not ser_instance or not ser_instance.is_open:
+    if not ser_instance:
         print("[ERROR] _set_initial_speeds: Serial connection is not available.")
         return False
+    
+    # Check if we have a Controller object with a usb attribute
+    if hasattr(ser_instance, 'usb') and not ser_instance.usb.is_open:
+        print("[ERROR] _set_initial_speeds: Serial connection is not open.")
+        return False
+    # Check if we have a Serial object directly
+    elif hasattr(ser_instance, 'is_open') and not ser_instance.is_open:
+        print("[ERROR] _set_initial_speeds: Serial connection is not open.")
+        return False
+        
     print("Setting initial servo speeds...")
     all_speeds_set = True
     for channel in range(17): # Assuming 17 servos
@@ -273,7 +265,7 @@ def restore_maestro_defaults():
         speeds_set_ok = _set_initial_speeds(st.session_state.ser)
         if speeds_set_ok:
             print("Step 3 SUCCESS: Initial speeds re-applied.")
-            st.toast("Maestro defaults restored, reconfigured, and speeds set.", icon="✅")
+            st.toast("Maestro defaults restored, reconfigured, and speeds set.")
         else:
             print("Step 3 FAILED: Failed to set initial speeds after restore/configure.")
             st.error("Failed to set initial speeds after restore/configure.")
@@ -295,7 +287,7 @@ st.markdown('<div class="title-font">Mini Humanoid Control Panel</div>', unsafe_
 # Connection Status and Control
 col1, col2, col3 = st.columns([1, 2, 1])
 with col1:
-    if st.button("🔌 Connect", key="connect_btn", disabled=st.session_state.connected):
+    if st.button("üîå Connect", key="connect_btn", disabled=st.session_state.connected):
         with st.spinner("Connecting..."):
             connect_robot()
         st.rerun() # Rerun to update UI state
@@ -308,7 +300,7 @@ with col2:
         status_placeholder.error(f"❌ Disconnected. {st.session_state.last_error}")
 
 with col3:
-    if st.button("🚫 Disconnect", key="disconnect_btn", disabled=not st.session_state.connected):
+    if st.button("üö´ Disconnect", key="disconnect_btn", disabled=not st.session_state.connected):
         disconnect_robot()
         st.rerun() # Rerun to update UI state
 
@@ -330,7 +322,7 @@ def execute_robot_action(action_func, *args, success_msg="Action successful.", f
         success = action_func(st.session_state.ser, *args, **kwargs)
         if success:
             print(success_msg)
-            st.toast(success_msg, icon="✅")
+            st.toast(success_msg)
             st.session_state.last_error = ""
             return True
         else:
@@ -357,69 +349,69 @@ main_cols = st.columns(2)
 with main_cols[0]:
     st.markdown('<p class="big-font">Preset Actions</p>', unsafe_allow_html=True)
 
-    if st.button("🧍 Stand Up / Reset", key="stand_up", disabled=not st.session_state.connected):
-        execute_robot_action(standing_pos_maestro.set_positions, standing_pos_maestro.standing_pos_maestroition, delay=2.0,
+    if st.button("üßç Stand Up / Reset", key="stand_up", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos_maestro.set_positions, standing_pos_maestro.standing_position, delay=2.0,
                              success_msg="Robot standing.", failure_msg="Failed to stand.")
 
-    if st.button("🙌 Raise Hands", key="raise_hands", disabled=not st.session_state.connected):
+    if st.button("üôå Raise Hands", key="raise_hands", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.raise_hands, success_msg="Hands raised.", failure_msg="Failed to raise hands.")
 
-    if st.button("✝️ Make Cross", key="make_cross", disabled=not st.session_state.connected):
+    if st.button("‚úùÔ∏è Make Cross", key="make_cross", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.make_cross, success_msg="Cross made.", failure_msg="Failed to make cross.")
 
-    if st.button("✌️ Make V", key="make_v", disabled=not st.session_state.connected):
+    if st.button("‚úåÔ∏è Make V", key="make_v", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.make_v, success_msg="V made.", failure_msg="Failed to make V.")
 
     walk_steps = st.number_input("Number of Walk Steps", min_value=1, max_value=10, value=2, key="walk_steps", disabled=not st.session_state.connected)
-    if st.button("🚶 Walk", key="walk", disabled=not st.session_state.connected):
+    if st.button("üö∂ Walk", key="walk", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.walk, walk_steps, success_msg=f"Walked {walk_steps} steps.", failure_msg="Walking failed.")
 
-    if st.button("🏃 Walk High Knees", key="walk_high", disabled=not st.session_state.connected):
+    if st.button("üèÉ Walk High Knees", key="walk_high", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.walk_high_knees, walk_steps, success_msg=f"Walked {walk_steps} high-knee steps.", failure_msg="High-knee walking failed.")
 
-    if st.button("🙇 Bend Forward", key="bend_fwd", disabled=not st.session_state.connected):
+    if st.button("üôá Bend Forward", key="bend_fwd", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.bend_forward, success_msg="Bent forward.", failure_msg="Failed to bend forward.")
 
-    if st.button("🤸 Bend Backwards", key="bend_bwd", disabled=not st.session_state.connected):
+    if st.button("ü§∏ Bend Backwards", key="bend_bwd", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.bend_backwards, success_msg="Bent backwards.", failure_msg="Failed to bend backwards.")
 
-    if st.button("🥊 Boxing Jab", key="box_jab", disabled=not st.session_state.connected):
+    if st.button("ü•ä Boxing Jab", key="box_jab", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.perform_boxing_move, 'jab', success_msg="Performed jab.", failure_msg="Failed to jab.")
 
-    if st.button("🤸‍♂️ Do Split", key="do_split", disabled=not st.session_state.connected):
+    if st.button("ü§∏‚Äç‚ôÇÔ∏è Do Split", key="do_split", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.do_split, success_msg="Attempted split.", failure_msg="Failed to attempt split.")
 
-    if st.button("🧘 Sit Down", key="sit_down", disabled=not st.session_state.connected):
+    if st.button("üßò Sit Down", key="sit_down", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.sit_down, success_msg="Attempted sit down.", failure_msg="Failed to attempt sit down.")
 
-    if st.button("🧍‍♂️ Get Up", key="get_up", disabled=not st.session_state.connected):
+    if st.button("üßç‚Äç‚ôÇÔ∏è Get Up", key="get_up", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.get_up, success_msg="Attempted get up.", failure_msg="Failed to attempt get up.")
 
     st.markdown("---") # Separator for new actions
     st.markdown('<p class="big-font" style="margin-top:15px;">New Actions</p>', unsafe_allow_html=True)
 
-    if st.button("👋 Wave Hello (R)", key="wave_hello", disabled=not st.session_state.connected):
+    if st.button("üëã Wave Hello (R)", key="wave_hello", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.wave_hello_right, success_msg="Waved hello.", failure_msg="Failed to wave hello.")
 
-    if st.button("👍 Head Nod (Yes)", key="head_nod", disabled=not st.session_state.connected):
+    if st.button("üëç Head Nod (Yes)", key="head_nod", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.head_nod_yes, success_msg="Nodded head.", failure_msg="Failed to nod head.")
 
-    if st.button("↕️ Look Up/Down", key="look_up_down", disabled=not st.session_state.connected):
+    if st.button("‚ÜïÔ∏è Look Up/Down", key="look_up_down", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.look_up_down, success_msg="Looked up/down.", failure_msg="Failed to look up/down.")
 
-    if st.button("🥋 Karate Chop (R)", key="karate_chop", disabled=not st.session_state.connected):
+    if st.button("ü•ã Karate Chop (R)", key="karate_chop", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.karate_chop_right, success_msg="Performed karate chop.", failure_msg="Failed to perform karate chop.")
 
-    if st.button("🙇 Bow", key="bow_action", disabled=not st.session_state.connected):
+    if st.button("üôá Bow", key="bow_action", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.bow_action, success_msg="Performed bow.", failure_msg="Failed to perform bow.")
 
-    if st.button("🤗 Prepare Hug", key="hug_prep", disabled=not st.session_state.connected):
+    if st.button("ü§ó Prepare Hug", key="hug_prep", disabled=not st.session_state.connected):
         execute_robot_action(standing_pos_maestro.hug_prep, success_msg="Prepared for hug.", failure_msg="Failed to prepare for hug.")
 
     st.markdown("---") # Separator before emergency button
     st.markdown('<div class="emergency-button" style="margin-top:15px;">', unsafe_allow_html=True)
     # Changed button action to call restore_maestro_defaults directly
-    if st.button("⚠️ RESTORE DEFAULTS (Release Servos)", key="release", disabled=not st.session_state.connected):
+    if st.button("‚ö†Ô∏è RESTORE DEFAULTS (Release Servos)", key="release", disabled=not st.session_state.connected):
         with st.spinner("Restoring Maestro defaults..."):
             restore_maestro_defaults()
         # No rerun needed unless state changes significantly require it
@@ -431,7 +423,7 @@ with main_cols[1]:
 
     # Store slider values in session state to maintain position
     if 'slider_values' not in st.session_state:
-        st.session_state.slider_values = standing_pos_maestro.standing_pos_maestroition.copy() # Initialize with standing pos
+        st.session_state.slider_values = standing_pos_maestro.standing_position.copy() # Fixed: standing_position instead of standing_pos_maestroition
 
     selected_channel = st.selectbox(
         "Select Servo Channel",
@@ -472,7 +464,7 @@ with main_cols[1]:
                     # Optionally add error to session state?
                     # st.session_state.last_error = f"Failed to set {joint_name}."
                 # else: # Optional: Add success toast/message if needed, but might be too noisy
-                #    st.toast(f"Set {joint_name} to {new_value}.", icon="✅")
+                #    st.toast(f"Set {joint_name} to {new_value}.", icon="‚úÖ")
             else:
                 st.error("Cannot set servo: Not connected.")
             # No rerun needed here, slider updates automatically
