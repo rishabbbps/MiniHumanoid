@@ -2,10 +2,14 @@
 import streamlit as st
 import time
 import serial
-import examples.standing_pos_maestro as standing_pos_maestro
+# import examples.standing_pos_maestro as standing_pos_maestro
+import standing_pos as standing_pos_maestro
 import subprocess  # Add this import
 import os  # Also add this for path handling
 
+
+# ls /dev/ttyACM*
+# /dev/ttyACM0  /dev/ttyACM1
 
 # Configure the page
 st.set_page_config(
@@ -52,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Configuration ---
-PORT = '/dev/cu.usbmodem004763651' # Adjust if needed
+PORT = '/dev/ttyACM1' # Adjust if needed
 BAUDRATE = 115200
 CONNECT_RETRIES = 3
 CONNECT_DELAY = 2.0 # Seconds
@@ -358,7 +362,7 @@ with main_cols[0]:
     st.markdown('<p class="big-font">Preset Actions</p>', unsafe_allow_html=True)
 
     if st.button("🧍 Stand Up / Reset", key="stand_up", disabled=not st.session_state.connected):
-        execute_robot_action(standing_pos_maestro.set_positions, standing_pos_maestro.standing_pos_maestroition, delay=2.0,
+        execute_robot_action(standing_pos_maestro.set_positions, standing_pos_maestro.standing_position, delay=2.0,
                              success_msg="Robot standing.", failure_msg="Failed to stand.")
 
     if st.button("🙌 Raise Hands", key="raise_hands", disabled=not st.session_state.connected):
@@ -431,7 +435,7 @@ with main_cols[1]:
 
     # Store slider values in session state to maintain position
     if 'slider_values' not in st.session_state:
-        st.session_state.slider_values = standing_pos_maestro.standing_pos_maestroition.copy() # Initialize with standing pos
+        st.session_state.slider_values = standing_pos_maestro.standing_position.copy() # Initialize with standing pos
 
     selected_channel = st.selectbox(
         "Select Servo Channel",
