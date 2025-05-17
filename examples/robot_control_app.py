@@ -1,4 +1,6 @@
-# robot_control_app.py
+## robot_control_app.py
+
+
 import streamlit as st
 import time
 import serial
@@ -56,7 +58,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Configuration ---
-PORT = '/dev/ttyACM1' # Adjust if needed
+PORT = '/dev/ttyACM0' # Adjust if needed
 BAUDRATE = 115200
 CONNECT_RETRIES = 3
 CONNECT_DELAY = 2.0 # Seconds
@@ -71,38 +73,15 @@ if 'last_error' not in st.session_state:
     st.session_state.last_error = ""
 
 # --- Connection Management Functions ---
-USCCMD_DIR = "/Users/rishabverma/Desktop/Robotics/MiniHumanoid/libraries/pololu-usb-sdk/Maestro/UscCmd"
+## MacOS
+# USCCMD_DIR = "/Users/rishabverma/Desktop/Robotics/MiniHumanoid/libraries/pololu-usb-sdk/Maestro/UscCmd"
+USCCMD_DIR = "/home/rishab/Desktop/MiniHumanoid/libraries/pololu-usb-sdk/Maestro/UscCmd"
 USCCMD_CMD = "UscCmd"  # No .exe needed
 
 def connect_robot():
     st.session_state.last_error = ""
-    # env = os.environ.copy() # Keep env setup if needed later
-    # env["DYLD_LIBRARY_PATH"] = "/opt/homebrew/Cellar/libusb/1.0.28/lib"
 
     try:
-        # print("Restoring defaults...") # Removed UscCmd calls
-        # result = subprocess.run(
-        #     ["mono", USCCMD_CMD, "--restoredefaults"],
-        #     cwd=USCCMD_DIR,
-        #     check=True,
-        #     capture_output=True,
-        #     text=True,
-        #     env=env
-        # )
-        # print(f"Restore defaults output: {result.stdout}\n{result.stderr}")
-        # # Now configure maestro
-        # print("Configuring maestro...")
-        # result = subprocess.run(
-        #     ["mono", USCCMD_CMD, "--configure", "maestro_config.txt"],
-        #     cwd=USCCMD_DIR,
-        #     check=True,
-        #     capture_output=True,
-        #     text=True,
-        #     env=env
-        # )
-        # print(f"Configure output: {result.stdout}\n{result.stderr}")
-        # print("Maestro initialization complete.") # Removed UscCmd calls
-
         # --- Start Serial Connection ---
         """Attempts to establish serial connection."""
         st.session_state.last_error = ""
@@ -165,10 +144,10 @@ def disconnect_robot():
     """Closes the serial connection."""
     if st.session_state.ser and st.session_state.ser.is_open:
         try:
-            # Optional: Release servos before disconnecting
-            # print("Releasing servos before disconnect...")
-            # standing_pos_maestro.release_servos(st.session_state.ser)
-            # time.sleep(0.5)
+            # Release servos before disconnecting
+            print("Releasing servos before disconnect...")
+            standing_pos_maestro.release_servos(st.session_state.ser)
+            time.sleep(0.5)
             st.session_state.ser.close()
             print(f"Disconnected from {PORT}.")
         except Exception as e:
@@ -428,6 +407,11 @@ with main_cols[0]:
             restore_maestro_defaults()
         # No rerun needed unless state changes significantly require it
     st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.button("Release All Servos", key="release_all", disabled=not st.session_state.connected):
+        execute_robot_action(standing_pos_maestro.release_servos,
+                            success_msg="All servos released.",
+                            failure_msg="Failed to release servos.")
 
 
 with main_cols[1]:
