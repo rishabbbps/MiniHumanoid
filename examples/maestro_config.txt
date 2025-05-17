@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UscSettings>
+  <SerialMode>USB_DUAL_PORT</SerialMode>
+  <FixedBaudRate>115200</FixedBaudRate> <!-- Corrected Baud Rate -->
+  <SerialTimeout>0</SerialTimeout>
+  <EnableCrc>false</EnableCrc>
+  <SerialDeviceNumber>12</SerialDeviceNumber>
+  <SerialMiniSscOffset>0</SerialMiniSscOffset>
+  <Channels>
+    <!-- Define all channels 0-16 with consistent settings -->
+    <Channel name="LAT" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RAT" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LA" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RA" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LK" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RK" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LHT" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RHT" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LH" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RH" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LS" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RS" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LE" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RE" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="LP" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="RP" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <Channel name="Head" mode="Servo" min="0" max="10000" homemode="Off" home="6000" speed="0" acceleration="0" neutral="6000" range="1905" />
+    <!-- Add more channels if needed, up to the limit of your Maestro -->
+  </Channels>
+</UscSettings>
