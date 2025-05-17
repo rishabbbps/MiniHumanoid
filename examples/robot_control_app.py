@@ -58,7 +58,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Configuration ---
-PORT = '/dev/ttyACM0' # Adjust if needed
+PORT = '/dev/ttyACM1' # Adjust if needed
 BAUDRATE = 115200
 CONNECT_RETRIES = 3
 CONNECT_DELAY = 2.0 # Seconds
