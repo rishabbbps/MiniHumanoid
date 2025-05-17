@@ -675,7 +675,7 @@ standing_position = {
     6: 5600,  # Left Hip-Thigh (LHT)
     7: 5400,  # Right Hip-Thigh (RHT)
     8: 5900,  # Left Hip (LH)
-    9: 5300,  # Right Hip (RH)
+    9: 5500,  # Right Hip (RH)
     10: 6000,  # Left Shoulder (LS)
     11: 6000,  # Right Shoulder (RS)
     12: 8000,  # Left Elbow (LE)
